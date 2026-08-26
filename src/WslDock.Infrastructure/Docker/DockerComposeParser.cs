@@ -19,7 +19,7 @@ public static class DockerComposeParser
     }
 
     public static IReadOnlyList<DockerComposeService> ParseServices(string output) =>
-        DockerJsonLinesParser.Parse<CliService, DockerComposeService>(output, "Compose service", x => new(x.Service ?? "", x.Name ?? x.Names ?? "", x.Image ?? "", x.State ?? "", x.Status ?? "", x.Ports ?? ""));
+        DockerJsonLinesParser.Parse<CliService, DockerComposeService>(output, "Compose service", x => new(x.ID ?? "", x.Service ?? "", x.Name ?? x.Names ?? "", x.Image ?? "", x.State ?? "", x.Status ?? "", x.Ports ?? ""));
 
     private static string LinuxDirectory(string path)
     {
@@ -27,5 +27,5 @@ public static class DockerComposeParser
         return slash <= 0 ? (slash == 0 ? "/" : ".") : path[..slash];
     }
     private sealed record CliProject(string? Name, string? Status, string? ConfigFiles);
-    private sealed record CliService(string? Service, string? Name, string? Names, string? Image, string? State, string? Status, string? Ports);
+    private sealed record CliService(string? ID, string? Service, string? Name, string? Names, string? Image, string? State, string? Status, string? Ports);
 }

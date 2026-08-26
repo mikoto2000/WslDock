@@ -57,10 +57,13 @@ Configuration is stored in `src/WslDock.App/appsettings.json`:
 - Volume and network listing, safe remove, and confirmed prune
 - Protection for Docker's `bridge`, `host`, and `none` networks
 - Docker Compose project discovery, service state, up, restart, logs, and confirmed down
+- Compose service-container start, stop, restart, confirmed remove, logs, and interactive exec
 - Manual refresh, busy-state command protection, cancellation on exit, and concise errors
 - Structured process arguments and debug logging
 
 Docker Compose management requires the Docker Compose v2 plugin (`docker compose`). Compose v1 (`docker-compose`) is not supported.
+
+Compose service operations act on the container selected in the service list. For a scaled service, only that selected replica is affected; project-level operations continue to act on the whole Compose project.
 
 ## Non-goals
 

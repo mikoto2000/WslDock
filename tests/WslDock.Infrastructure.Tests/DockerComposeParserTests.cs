@@ -21,9 +21,11 @@ public sealed class DockerComposeParserTests
     public void Services_parse_json_lines()
     {
         const string json = """
-            {"Service":"web","Name":"demo-web-1","Image":"nginx","State":"running","Status":"Up","Ports":"80/tcp"}
-            {"Service":"job","Name":"demo-job-1","Image":"busybox","State":"exited","Status":"Exited (0)","Ports":""}
+            {"ID":"abc","Service":"web","Name":"demo-web-1","Image":"nginx","State":"running","Status":"Up","Ports":"80/tcp"}
+            {"ID":"def","Service":"job","Name":"demo-job-1","Image":"busybox","State":"exited","Status":"Exited (0)","Ports":""}
             """;
-        Assert.Equal(2, DockerComposeParser.ParseServices(json).Count);
+        var result = DockerComposeParser.ParseServices(json);
+        Assert.Equal(2, result.Count);
+        Assert.Equal("abc", result[0].Id);
     }
 }
