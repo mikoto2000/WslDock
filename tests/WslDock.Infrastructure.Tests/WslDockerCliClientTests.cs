@@ -11,6 +11,7 @@ public sealed class WslDockerCliClientTests
     [InlineData("start")]
     [InlineData("stop")]
     [InlineData("restart")]
+    [InlineData("rm")]
     public async Task Operation_passes_distribution_and_id_as_separate_arguments(string operation)
     {
         var runner = new FakeProcessRunner(new ProcessResult(0, "abc", ""));
@@ -59,6 +60,7 @@ public sealed class WslDockerCliClientTests
     {
         "start" => client.StartAsync("Ubuntu Dev", "abc;rm -rf"),
         "stop" => client.StopAsync("Ubuntu Dev", "abc;rm -rf"),
-        _ => client.RestartAsync("Ubuntu Dev", "abc;rm -rf")
+        "restart" => client.RestartAsync("Ubuntu Dev", "abc;rm -rf"),
+        _ => client.RemoveAsync("Ubuntu Dev", "abc;rm -rf")
     };
 }

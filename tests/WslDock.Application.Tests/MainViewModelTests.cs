@@ -1,4 +1,5 @@
 using WslDock.App.ViewModels;
+using WslDock.App.Services;
 using WslDock.Application;
 using WslDock.Domain;
 
@@ -37,6 +38,19 @@ public sealed class MainViewModelTests
         vm.SelectedContainer = vm.Containers[0];
         Assert.False(vm.StartCommand.CanExecute(null));
         Assert.True(vm.StopCommand.CanExecute(null));
+        Assert.False(vm.RemoveCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Remove_requires_confirmation_and_refreshes()
+    {
+        var docker = new FakeDockerClient();
+        var vm = new MainViewModel(new FakeWslService(), docker, new WslDockOptions(), new Confirmation(true));
+        await vm.InitializeAsync();
+        vm.SelectedContainer = vm.Containers[0] with { State = DockerContainerState.Exited };
+        await vm.RemoveCommand.ExecuteAsync(null);
+        Assert.Equal(1, docker.Removes);
+        Assert.True(docker.ListCalls >= 2);
     }
 
     private sealed class FakeWslService : IWslService
@@ -49,6 +63,7 @@ public sealed class MainViewModelTests
     {
         public int Starts { get; private set; }
         public int ListCalls { get; private set; }
+        public int Removes { get; private set; }
         public Task<DockerEngineStatus> GetStatusAsync(string distribution, CancellationToken cancellationToken = default) => Task.FromResult(DockerEngineStatus.Running);
         public Task<IReadOnlyList<DockerContainer>> GetContainersAsync(string distribution, CancellationToken cancellationToken = default)
         {
@@ -58,6 +73,8 @@ public sealed class MainViewModelTests
         public Task StartAsync(string distribution, string containerId, CancellationToken cancellationToken = default) { Starts++; return Task.CompletedTask; }
         public Task StopAsync(string distribution, string containerId, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task RestartAsync(string distribution, string containerId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task RemoveAsync(string distribution, string containerId, CancellationToken cancellationToken = default) { Removes++; return Task.CompletedTask; }
         public Task<string> GetLogsAsync(string distribution, string containerId, int tailLines, CancellationToken cancellationToken = default) => Task.FromResult("logs");
     }
+    private sealed class Confirmation(bool answer) : IConfirmationService { public bool Confirm(string message) => answer; }
 }
