@@ -53,6 +53,33 @@ public sealed class MainViewModelTests
         Assert.True(docker.ListCalls >= 2);
     }
 
+    [Fact]
+    public async Task Exec_is_enabled_only_for_running_container_and_launches()
+    {
+        var exec = new FakeExecService(ContainerShell.Bash);
+        var vm = new MainViewModel(new FakeWslService(), new FakeDockerClient(), new WslDockOptions(), new Confirmation(true), exec);
+        await vm.InitializeAsync();
+        Assert.False(vm.ExecCommand.CanExecute(null));
+        vm.SelectedContainer = vm.Containers[0];
+        Assert.True(vm.ExecCommand.CanExecute(null));
+        await vm.ExecCommand.ExecuteAsync(null);
+        Assert.Equal(("Ubuntu", "id", ContainerShell.Bash), exec.Launched);
+        Assert.False(vm.IsBusy);
+        vm.SelectedContainer = vm.Containers[0] with { State = DockerContainerState.Paused };
+        Assert.False(vm.ExecCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Exec_without_shell_sets_readable_error_and_does_not_launch()
+    {
+        var exec = new FakeExecService(null);
+        var vm = new MainViewModel(new FakeWslService(), new FakeDockerClient(), new WslDockOptions(), new Confirmation(true), exec);
+        await vm.InitializeAsync(); vm.SelectedContainer = vm.Containers[0];
+        await vm.ExecCommand.ExecuteAsync(null);
+        Assert.Contains("/bin/bash", vm.ErrorMessage);
+        Assert.Null(exec.Launched);
+    }
+
     private sealed class FakeWslService : IWslService
     {
         public Task<IReadOnlyList<WslDistribution>> GetDistributionsAsync(CancellationToken cancellationToken = default) =>
@@ -77,4 +104,10 @@ public sealed class MainViewModelTests
         public Task<string> GetLogsAsync(string distribution, string containerId, int tailLines, CancellationToken cancellationToken = default) => Task.FromResult("logs");
     }
     private sealed class Confirmation(bool answer) : IConfirmationService { public bool Confirm(string message) => answer; }
+    private sealed class FakeExecService(ContainerShell? shell) : IContainerExecService
+    {
+        public (string Distribution, string Id, ContainerShell Shell)? Launched { get; private set; }
+        public Task<ContainerShell?> DetectShellAsync(string distribution, string containerId, CancellationToken cancellationToken = default) => Task.FromResult(shell);
+        public Task OpenInteractiveShellAsync(string distribution, string containerId, ContainerShell selectedShell, CancellationToken cancellationToken = default) { Launched = (distribution, containerId, selectedShell); return Task.CompletedTask; }
+    }
 }
