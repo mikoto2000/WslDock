@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WslDock.Application;
 using WslDock.Domain;
+using WslDock.App.Services;
 
 namespace WslDock.App.ViewModels;
 
@@ -12,6 +13,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly IDockerClient dockerClient;
     private readonly WslDockOptions options;
     private readonly DistributionContext? distributionContext;
+    private readonly IConfirmationService? confirmation;
     private readonly CancellationTokenSource shutdown = new();
 
     public ImagesViewModel? ImagesViewModel { get; }
@@ -24,11 +26,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
         this.wslService = wslService; this.dockerClient = dockerClient; this.options = options;
     }
 
+    public MainViewModel(IWslService wslService, IDockerClient dockerClient, WslDockOptions options, IConfirmationService confirmation)
+        : this(wslService, dockerClient, options) => this.confirmation = confirmation;
+
     public MainViewModel(IWslService wslService, IDockerClient dockerClient, WslDockOptions options, DistributionContext distributionContext,
-        ImagesViewModel imagesViewModel, VolumesViewModel volumesViewModel, NetworksViewModel networksViewModel, ComposeProjectsViewModel composeViewModel)
+        ImagesViewModel imagesViewModel, VolumesViewModel volumesViewModel, NetworksViewModel networksViewModel, ComposeProjectsViewModel composeViewModel,
+        IConfirmationService confirmation)
         : this(wslService, dockerClient, options)
     {
         this.distributionContext = distributionContext;
+        this.confirmation = confirmation;
         ImagesViewModel = imagesViewModel; VolumesViewModel = volumesViewModel; NetworksViewModel = networksViewModel; ComposeViewModel = composeViewModel;
     }
 
@@ -36,14 +43,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<DockerContainer> Containers { get; } = [];
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(RefreshCommand), nameof(StartCommand), nameof(StopCommand), nameof(RestartCommand), nameof(LoadLogsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand), nameof(StartCommand), nameof(StopCommand), nameof(RestartCommand), nameof(RemoveCommand), nameof(LoadLogsCommand))]
     private bool isBusy;
 
     [ObservableProperty]
     private WslDistribution? selectedDistribution;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(StopCommand), nameof(RestartCommand), nameof(LoadLogsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(StopCommand), nameof(RestartCommand), nameof(RemoveCommand), nameof(LoadLogsCommand))]
     private DockerContainer? selectedContainer;
 
     [ObservableProperty]
@@ -80,6 +87,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand(CanExecute = nameof(CanOperate))]
     private Task RestartAsync() => OperateAsync((d, id, ct) => dockerClient.RestartAsync(d, id, ct));
+
+    [RelayCommand(CanExecute = nameof(CanRemove))]
+    private Task RemoveAsync()
+    {
+        if (confirmation is null || !confirmation.Confirm($"Remove container \"{SelectedContainer!.Name}\"?")) return Task.CompletedTask;
+        return OperateAsync((d, id, ct) => dockerClient.RemoveAsync(d, id, ct));
+    }
+    private bool CanRemove() => !IsBusy && SelectedDistribution is not null && SelectedContainer is { State: not DockerContainerState.Running and not DockerContainerState.Paused and not DockerContainerState.Restarting };
 
     [RelayCommand(CanExecute = nameof(CanOperate))]
     private Task LoadLogsAsync() => RunBusyAsync(async token =>

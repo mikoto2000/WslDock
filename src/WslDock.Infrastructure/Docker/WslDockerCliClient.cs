@@ -33,6 +33,9 @@ public sealed class WslDockerCliClient(IProcessRunner processRunner, ILogger<Wsl
     public Task RestartAsync(string distribution, string containerId, CancellationToken cancellationToken = default) =>
         ExecuteOperationAsync(distribution, "restart", containerId, cancellationToken);
 
+    public Task RemoveAsync(string distribution, string containerId, CancellationToken cancellationToken = default) =>
+        ExecuteOperationAsync(distribution, "rm", containerId, cancellationToken);
+
     public async Task<string> GetLogsAsync(string distribution, string containerId, int tailLines, CancellationToken cancellationToken = default)
     {
         var result = await RunAsync(distribution, ["docker", "logs", "--tail", Math.Max(1, tailLines).ToString(System.Globalization.CultureInfo.InvariantCulture), containerId], cancellationToken);

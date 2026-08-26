@@ -40,7 +40,7 @@ Configuration is stored in `src/WslDock.App/appsettings.json`:
 - WSL distribution discovery and selection
 - Docker Engine availability classification
 - Container listing with name, image, state, status, and ports
-- Start, stop, restart, and historical logs
+- Start, stop, restart, confirmed safe removal, and historical logs
 - Image listing, pull, safe remove, and confirmed unused-image prune
 - Volume and network listing, safe remove, and confirmed prune
 - Protection for Docker's `bridge`, `host`, and `none` networks

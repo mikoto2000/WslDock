@@ -9,5 +9,6 @@ public interface IDockerClient
     Task StartAsync(string distribution, string containerId, CancellationToken cancellationToken = default);
     Task StopAsync(string distribution, string containerId, CancellationToken cancellationToken = default);
     Task RestartAsync(string distribution, string containerId, CancellationToken cancellationToken = default);
+    Task RemoveAsync(string distribution, string containerId, CancellationToken cancellationToken = default);
     Task<string> GetLogsAsync(string distribution, string containerId, int tailLines, CancellationToken cancellationToken = default);
 }
