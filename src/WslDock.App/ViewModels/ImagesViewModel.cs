@@ -16,4 +16,6 @@ public partial class ImagesViewModel(DistributionContext context, IDockerImageCl
     [RelayCommand(CanExecute = nameof(CanRemove))] private Task RemoveAsync() => confirmation.Confirm($"Remove image \"{SelectedImage!.Repository}:{SelectedImage.Tag}\"?") ? RunAsync(async (d, ct) => { await client.RemoveAsync(d, SelectedImage!.Id, ct); Replace(Images, await client.GetImagesAsync(d, ct)); }) : Task.CompletedTask;
     private bool CanRemove() => !IsBusy && SelectedImage is not null;
     [RelayCommand] private Task PruneAsync() => confirmation.Confirm("Remove all unused Docker images?") ? RunAsync(async (d, ct) => { await client.PruneAsync(d, ct); Replace(Images, await client.GetImagesAsync(d, ct)); }) : Task.CompletedTask;
+    public void Reset() { Images.Clear(); SelectedImage = null; ErrorMessage = null; }
+    protected override void BusyChanged() { RefreshCommand.NotifyCanExecuteChanged(); PullCommand.NotifyCanExecuteChanged(); RemoveCommand.NotifyCanExecuteChanged(); PruneCommand.NotifyCanExecuteChanged(); }
 }

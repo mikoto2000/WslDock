@@ -123,6 +123,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     partial void OnSelectedDistributionChanged(WslDistribution? value)
     {
         if (distributionContext is not null) distributionContext.SelectedDistribution = value;
+        ImagesViewModel?.Reset(); VolumesViewModel?.Reset(); NetworksViewModel?.Reset(); ComposeViewModel?.Reset();
         SelectedContainer = null;
         RefreshCommand.NotifyCanExecuteChanged();
         if (value is not null && !IsBusy) _ = RefreshCommand.ExecuteAsync(null);

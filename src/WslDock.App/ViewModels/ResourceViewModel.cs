@@ -1,7 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 namespace WslDock.App.ViewModels;
-public abstract partial class ResourceViewModel(DistributionContext context) : ObservableObject
+public abstract partial class ResourceViewModel(DistributionContext context) : ObservableObject, IDisposable
 {
+    private readonly CancellationTokenSource shutdown = new();
     protected DistributionContext Context { get; } = context;
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string? errorMessage;
@@ -9,9 +10,12 @@ public abstract partial class ResourceViewModel(DistributionContext context) : O
     {
         if (IsBusy || Context.Name is null) return;
         IsBusy = true; ErrorMessage = null;
-        try { await action(Context.Name, CancellationToken.None); }
+        try { await action(Context.Name, shutdown.Token); }
         catch (Exception ex) { ErrorMessage = ex.Message; }
         finally { IsBusy = false; }
     }
+    partial void OnIsBusyChanged(bool value) => BusyChanged();
+    protected virtual void BusyChanged() { }
+    public void Dispose() { shutdown.Cancel(); shutdown.Dispose(); }
     protected static void Replace<T>(System.Collections.ObjectModel.ObservableCollection<T> target, IEnumerable<T> values) { target.Clear(); foreach (var value in values) target.Add(value); }
 }

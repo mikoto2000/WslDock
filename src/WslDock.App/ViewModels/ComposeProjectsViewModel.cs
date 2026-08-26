@@ -21,4 +21,6 @@ public partial class ComposeProjectsViewModel(DistributionContext context, IDock
     [RelayCommand(CanExecute = nameof(CanOperate))] private Task DownAsync() => confirmation.Confirm($"Stop and remove Compose project \"{SelectedProject!.Name}\" containers and networks? Volumes and images are kept.") ? Operate((d, p, ct) => client.DownAsync(d, p, ct)) : Task.CompletedTask;
     private bool CanOperate() => !IsBusy && SelectedProject is not null && IsComposeAvailable;
     private Task Operate(Func<string, DockerComposeProject, CancellationToken, Task> action) => RunAsync(async (d, ct) => { await action(d, SelectedProject!, ct); Replace(Projects, await client.GetProjectsAsync(d, ct)); if (SelectedProject is not null) Replace(Services, await client.GetServicesAsync(d, SelectedProject, ct)); });
+    public void Reset() { Projects.Clear(); Services.Clear(); SelectedProject = null; Logs = null; ErrorMessage = null; IsComposeAvailable = false; }
+    protected override void BusyChanged() { RefreshCommand.NotifyCanExecuteChanged(); UpCommand.NotifyCanExecuteChanged(); DownCommand.NotifyCanExecuteChanged(); RestartCommand.NotifyCanExecuteChanged(); LogsCommand.NotifyCanExecuteChanged(); }
 }

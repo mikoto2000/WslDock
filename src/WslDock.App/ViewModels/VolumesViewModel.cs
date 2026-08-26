@@ -13,4 +13,6 @@ public partial class VolumesViewModel(DistributionContext context, IDockerVolume
     [RelayCommand(CanExecute = nameof(CanRemove))] private Task RemoveAsync() => confirmation.Confirm($"Remove volume \"{SelectedVolume!.Name}\"?") ? RunAsync(async (d, ct) => { await client.RemoveAsync(d, SelectedVolume!.Name, ct); Replace(Volumes, await client.GetVolumesAsync(d, ct)); }) : Task.CompletedTask;
     private bool CanRemove() => !IsBusy && SelectedVolume is not null;
     [RelayCommand] private Task PruneAsync() => confirmation.Confirm("Remove all unused Docker volumes?") ? RunAsync(async (d, ct) => { await client.PruneAsync(d, ct); Replace(Volumes, await client.GetVolumesAsync(d, ct)); }) : Task.CompletedTask;
+    public void Reset() { Volumes.Clear(); SelectedVolume = null; ErrorMessage = null; }
+    protected override void BusyChanged() { RefreshCommand.NotifyCanExecuteChanged(); RemoveCommand.NotifyCanExecuteChanged(); PruneCommand.NotifyCanExecuteChanged(); }
 }

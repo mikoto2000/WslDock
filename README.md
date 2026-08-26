@@ -35,18 +35,24 @@ Configuration is stored in `src/WslDock.App/appsettings.json`:
 - `DefaultDistribution`: preferred WSL distribution name (or `null`)
 - `LogTailLines`: maximum historical log lines, default `500`
 
-## v1 features
+## v1.1 features
 
 - WSL distribution discovery and selection
 - Docker Engine availability classification
 - Container listing with name, image, state, status, and ports
 - Start, stop, restart, and historical logs
+- Image listing, pull, safe remove, and confirmed unused-image prune
+- Volume and network listing, safe remove, and confirmed prune
+- Protection for Docker's `bridge`, `host`, and `none` networks
+- Docker Compose project discovery, service state, up, restart, logs, and confirmed down
 - Manual refresh, busy-state command protection, cancellation on exit, and concise errors
 - Structured process arguments and debug logging
 
+Docker Compose management requires the Docker Compose v2 plugin (`docker compose`). Compose v1 (`docker-compose`) is not supported.
+
 ## Non-goals
 
-Version 1 does not manage images, volumes, networks, Compose projects, container creation/deletion, exec sessions, streaming events/stats, Kubernetes, registry login, daemon installation, or daemon configuration.
+Version 1.1 does not provide builds, image push/tag, registry login, resource creation UI, Compose editing/new-project creation, exec sessions, streaming events/stats, Kubernetes, daemon installation, or daemon configuration.
 
 ## Architecture
 
@@ -56,3 +62,10 @@ WslDock.Infrastructure -> WslDock.Application -> WslDock.Domain
 ```
 
 `WslDock.App` contains WPF/MVVM and dependency composition. `WslDock.Application` defines use-case boundaries. `WslDock.Domain` contains pure models. `WslDock.Infrastructure` owns process execution, WSL parsing, and Docker CLI parsing/calls. Unit tests use fake process and Docker clients and do not require WSL or Docker.
+
+```text
+WPF View -> ViewModel -> Application abstraction -> Infrastructure CLI client
+         -> IProcessRunner -> wsl.exe -> docker / docker compose -> Docker Engine
+```
+
+All resource screens share one selected WSL distribution context. Long-running operations remain asynchronous, and CLI values are passed as individual process arguments rather than shell command strings.
