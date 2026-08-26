@@ -6,9 +6,31 @@ using WslDock.Domain;
 
 namespace WslDock.App.ViewModels;
 
-public partial class MainViewModel(IWslService wslService, IDockerClient dockerClient, WslDockOptions options) : ObservableObject, IDisposable
+public partial class MainViewModel : ObservableObject, IDisposable
 {
+    private readonly IWslService wslService;
+    private readonly IDockerClient dockerClient;
+    private readonly WslDockOptions options;
+    private readonly DistributionContext? distributionContext;
     private readonly CancellationTokenSource shutdown = new();
+
+    public ImagesViewModel? ImagesViewModel { get; }
+    public VolumesViewModel? VolumesViewModel { get; }
+    public NetworksViewModel? NetworksViewModel { get; }
+    public ComposeProjectsViewModel? ComposeViewModel { get; }
+
+    public MainViewModel(IWslService wslService, IDockerClient dockerClient, WslDockOptions options)
+    {
+        this.wslService = wslService; this.dockerClient = dockerClient; this.options = options;
+    }
+
+    public MainViewModel(IWslService wslService, IDockerClient dockerClient, WslDockOptions options, DistributionContext distributionContext,
+        ImagesViewModel imagesViewModel, VolumesViewModel volumesViewModel, NetworksViewModel networksViewModel, ComposeProjectsViewModel composeViewModel)
+        : this(wslService, dockerClient, options)
+    {
+        this.distributionContext = distributionContext;
+        ImagesViewModel = imagesViewModel; VolumesViewModel = volumesViewModel; NetworksViewModel = networksViewModel; ComposeViewModel = composeViewModel;
+    }
 
     public ObservableCollection<WslDistribution> Distributions { get; } = [];
     public ObservableCollection<DockerContainer> Containers { get; } = [];
@@ -100,6 +122,7 @@ public partial class MainViewModel(IWslService wslService, IDockerClient dockerC
 
     partial void OnSelectedDistributionChanged(WslDistribution? value)
     {
+        if (distributionContext is not null) distributionContext.SelectedDistribution = value;
         SelectedContainer = null;
         RefreshCommand.NotifyCanExecuteChanged();
         if (value is not null && !IsBusy) _ = RefreshCommand.ExecuteAsync(null);
