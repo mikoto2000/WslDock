@@ -26,8 +26,10 @@ public partial class App : System.Windows.Application
         collection.AddLogging(builder => builder.AddDebug());
         collection.AddSingleton(options);
         collection.AddSingleton<IProcessRunner, ProcessRunner>();
+        collection.AddSingleton<ITerminalLauncher, WindowsTerminalLauncher>();
         collection.AddSingleton<IWslService, WslService>();
         collection.AddSingleton<IDockerClient, WslDockerCliClient>();
+        collection.AddSingleton<IContainerExecService, WslContainerExecService>();
         collection.AddSingleton<IDockerImageClient, WslDockerImageClient>();
         collection.AddSingleton<IDockerVolumeClient, WslDockerVolumeClient>();
         collection.AddSingleton<IDockerNetworkClient, WslDockerNetworkClient>();

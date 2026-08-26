@@ -14,6 +14,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly WslDockOptions options;
     private readonly DistributionContext? distributionContext;
     private readonly IConfirmationService? confirmation;
+    private readonly IContainerExecService? containerExecService;
     private readonly CancellationTokenSource shutdown = new();
 
     public ImagesViewModel? ImagesViewModel { get; }
@@ -29,13 +30,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public MainViewModel(IWslService wslService, IDockerClient dockerClient, WslDockOptions options, IConfirmationService confirmation)
         : this(wslService, dockerClient, options) => this.confirmation = confirmation;
 
+    public MainViewModel(IWslService wslService, IDockerClient dockerClient, WslDockOptions options, IConfirmationService confirmation, IContainerExecService containerExecService)
+        : this(wslService, dockerClient, options, confirmation) => this.containerExecService = containerExecService;
+
     public MainViewModel(IWslService wslService, IDockerClient dockerClient, WslDockOptions options, DistributionContext distributionContext,
         ImagesViewModel imagesViewModel, VolumesViewModel volumesViewModel, NetworksViewModel networksViewModel, ComposeProjectsViewModel composeViewModel,
-        IConfirmationService confirmation)
+        IConfirmationService confirmation, IContainerExecService containerExecService)
         : this(wslService, dockerClient, options)
     {
         this.distributionContext = distributionContext;
         this.confirmation = confirmation;
+        this.containerExecService = containerExecService;
         ImagesViewModel = imagesViewModel; VolumesViewModel = volumesViewModel; NetworksViewModel = networksViewModel; ComposeViewModel = composeViewModel;
     }
 
@@ -43,14 +48,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<DockerContainer> Containers { get; } = [];
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(RefreshCommand), nameof(StartCommand), nameof(StopCommand), nameof(RestartCommand), nameof(RemoveCommand), nameof(LoadLogsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand), nameof(StartCommand), nameof(StopCommand), nameof(RestartCommand), nameof(RemoveCommand), nameof(LoadLogsCommand), nameof(ExecCommand))]
     private bool isBusy;
 
     [ObservableProperty]
     private WslDistribution? selectedDistribution;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(StopCommand), nameof(RestartCommand), nameof(RemoveCommand), nameof(LoadLogsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(StopCommand), nameof(RestartCommand), nameof(RemoveCommand), nameof(LoadLogsCommand), nameof(ExecCommand))]
     private DockerContainer? selectedContainer;
 
     [ObservableProperty]
@@ -101,6 +106,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Logs = await dockerClient.GetLogsAsync(SelectedDistribution!.Name, SelectedContainer!.Id, options.LogTailLines, token));
 
     private bool CanOperate() => !IsBusy && SelectedContainer is not null && SelectedDistribution is not null;
+
+    [RelayCommand(CanExecute = nameof(CanExec))]
+    private Task ExecAsync() => RunBusyAsync(async token =>
+    {
+        var shell = await containerExecService!.DetectShellAsync(SelectedDistribution!.Name, SelectedContainer!.Id, token);
+        if (shell is null) throw new InvalidOperationException("This container does not appear to provide /bin/bash or /bin/sh.");
+        await containerExecService.OpenInteractiveShellAsync(SelectedDistribution.Name, SelectedContainer.Id, shell.Value, token);
+    });
+    private bool CanExec() => !IsBusy && containerExecService is not null && SelectedDistribution is not null && SelectedContainer?.State == DockerContainerState.Running;
 
     private Task OperateAsync(Func<string, string, CancellationToken, Task> action) => RunBusyAsync(async token =>
     {
