@@ -28,6 +28,17 @@ dotnet build -c Release
 dotnet run --project src/WslDock.App/WslDock.App.csproj
 ```
 
+## Release package
+
+Push a tag beginning with `v` to build a self-contained Windows x64 ZIP and attach it to a GitHub Release:
+
+```powershell
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+The **Build and release** workflow can also be run manually. Manual runs upload the ZIP as a workflow artifact without creating a GitHub Release.
+
 Choose a WSL distribution, confirm the engine status, select a container, and use Start, Stop, Restart, or Logs. Successful state-changing operations refresh the list automatically.
 
 Configuration is stored in `src/WslDock.App/appsettings.json`:

@@ -1,0 +1,96 @@
+name: Build and release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish-windows:
+    runs-on: windows-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: true
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore WslDock.sln
+          dotnet restore src/WslDock.App/WslDock.App.csproj --runtime win-x64
+
+      - name: Test
+        run: dotnet test WslDock.sln --configuration Release --no-restore
+
+      - name: Set package version
+        id: package
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $version = "${{ github.ref_name }}" -replace '^v', ''
+          } else {
+            $version = "0.0.0-ci.${{ github.run_number }}"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "archive_name=WslDock-$version-win-x64" >> $env:GITHUB_OUTPUT
+
+      - name: Publish self-contained application
+        shell: pwsh
+        run: |
+          dotnet publish src/WslDock.App/WslDock.App.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --no-restore `
+            --output artifacts/publish `
+            -p:Version=${{ steps.package.outputs.version }} `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+
+      - name: Create ZIP archive
+        shell: pwsh
+        run: |
+          $archive = "artifacts/${{ steps.package.outputs.archive_name }}.zip"
+          Compress-Archive -Path artifacts/publish/* -DestinationPath $archive -CompressionLevel Optimal
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.archive_name }}
+          path: artifacts/${{ steps.package.outputs.archive_name }}.zip
+          if-no-files-found: error
+
+      - name: Publish GitHub Release asset
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $archive = "artifacts/${{ steps.package.outputs.archive_name }}.zip"
+          $ErrorActionPreference = "Continue"
+          $PSNativeCommandUseErrorActionPreference = $false
+          gh release view $tag --repo "${{ github.repository }}" *> $null
+          $releaseExists = $LASTEXITCODE -eq 0
+          $ErrorActionPreference = "Stop"
+          if ($releaseExists) {
+            gh release upload $tag $archive --clobber --repo "${{ github.repository }}"
+          } else {
+            gh release create $tag $archive `
+              --repo "${{ github.repository }}" `
+              --title "WslDock $tag" `
+              --generate-notes `
+              --verify-tag
+          }
