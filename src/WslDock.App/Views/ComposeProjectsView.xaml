@@ -33,7 +33,7 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Service" Binding="{Binding Service}" />
                 <DataGridTextColumn Header="Container" Binding="{Binding ContainerName}" />
-                <DataGridTextColumn Header="Image" Binding="{Binding Image}" Width="*" />
+                <DataGridTextColumn Header="Image" Binding="{Binding Image}" Width="SizeToCells" MaxWidth="240" />
                 <DataGridTextColumn Header="State" Binding="{Binding State}" />
                 <DataGridTextColumn Header="Status" Binding="{Binding Status}" />
                 <DataGridTextColumn Header="Ports" Binding="{Binding Ports}" />
