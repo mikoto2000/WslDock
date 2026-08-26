@@ -41,6 +41,7 @@ Configuration is stored in `src/WslDock.App/appsettings.json`:
 - Docker Engine availability classification
 - Container listing with name, image, state, status, and ports
 - Start, stop, restart, confirmed safe removal, and historical logs
+- Interactive Exec for running containers in a new Windows default terminal
 - Image listing, pull, safe remove, and confirmed unused-image prune
 - Volume and network listing, safe remove, and confirmed prune
 - Protection for Docker's `bridge`, `host`, and `none` networks
@@ -69,3 +70,13 @@ WPF View -> ViewModel -> Application abstraction -> Infrastructure CLI client
 ```
 
 All resource screens share one selected WSL distribution context. Long-running operations remain asynchronous, and CLI values are passed as individual process arguments rather than shell command strings.
+
+### Container Exec
+
+Select a running container and choose **Exec** to open an interactive shell in a new Windows terminal. WslDock checks `/bin/bash` first, falls back to `/bin/sh`, and reports an error without opening a terminal when neither shell exists. The selected WSL distribution and its Docker CLI are used. WslDock does not embed a terminal or redirect the interactive session through WPF.
+
+```text
+Containers ViewModel -> Container Exec service -> wsl.exe / docker exec test
+                     -> Terminal launcher -> Windows default terminal
+                     -> wsl.exe -> docker exec -it -> Container shell
+```

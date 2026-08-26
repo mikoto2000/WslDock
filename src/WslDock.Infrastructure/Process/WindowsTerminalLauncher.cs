@@ -15,7 +15,7 @@ public sealed class WindowsTerminalLauncher(ILogger<WindowsTerminalLauncher> log
             if (System.Diagnostics.Process.Start(info) is null) throw new InvalidOperationException("The Windows terminal process was not started.");
             return Task.CompletedTask;
         }
-        catch (Win32Exception exception)
+        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
         {
             logger.LogError(exception, "Terminal launch failed for {FileName}", request.FileName);
             throw new InvalidOperationException("A new Windows terminal could not be opened.", exception);
