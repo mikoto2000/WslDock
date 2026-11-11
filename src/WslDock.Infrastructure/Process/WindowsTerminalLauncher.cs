@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using WslDock.Application.Processes;
 namespace WslDock.Infrastructure.Process;
 public sealed class WindowsTerminalLauncher(ILogger<WindowsTerminalLauncher> logger) : ITerminalLauncher
 {

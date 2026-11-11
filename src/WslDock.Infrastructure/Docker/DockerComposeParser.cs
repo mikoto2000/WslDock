@@ -19,7 +19,7 @@ public static class DockerComposeParser
     }
 
     public static IReadOnlyList<DockerComposeService> ParseServices(string output) =>
-        DockerJsonLinesParser.Parse<CliService, DockerComposeService>(output, "Compose service", x => new(x.ID ?? "", x.Service ?? "", x.Name ?? x.Names ?? "", x.Image ?? "", x.State ?? "", x.Status ?? "", x.Ports ?? ""));
+        DockerJsonLinesParser.Parse<CliService, DockerComposeService>(output, "Compose service", x => new(x.ID ?? "", x.Service ?? "", x.Name ?? x.Names ?? "", x.Image ?? "", DockerContainerParser.ParseState(x.State), x.Status ?? "", x.Ports ?? ""));
 
     private static string LinuxDirectory(string path)
     {

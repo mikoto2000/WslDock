@@ -4,15 +4,66 @@ using CommunityToolkit.Mvvm.Input;
 using WslDock.App.Services;
 using WslDock.Application;
 using WslDock.Domain;
+
 namespace WslDock.App.ViewModels;
-public partial class NetworksViewModel(DistributionContext context, IDockerNetworkClient client, IConfirmationService confirmation) : ResourceViewModel(context)
+
+public partial class NetworksViewModel(
+    DistributionContext context,
+    IDockerNetworkClient client,
+    IConfirmationService confirmation) : ResourceViewModel(context)
 {
     public ObservableCollection<DockerNetwork> Networks { get; } = [];
-    [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(RemoveCommand))] private DockerNetwork? selectedNetwork;
-    [RelayCommand] private Task RefreshAsync() => RunAsync(async (d, ct) => Replace(Networks, await client.GetNetworksAsync(d, ct)));
-    [RelayCommand(CanExecute = nameof(CanRemove))] private Task RemoveAsync() => confirmation.Confirm($"Remove network \"{SelectedNetwork!.Name}\"?") ? RunAsync(async (d, ct) => { await client.RemoveAsync(d, SelectedNetwork!.Id, ct); Replace(Networks, await client.GetNetworksAsync(d, ct)); }) : Task.CompletedTask;
-    private bool CanRemove() => !IsBusy && SelectedNetwork is { IsStandard: false };
-    [RelayCommand] private Task PruneAsync() => confirmation.Confirm("Remove all unused Docker networks?") ? RunAsync(async (d, ct) => { await client.PruneAsync(d, ct); Replace(Networks, await client.GetNetworksAsync(d, ct)); }) : Task.CompletedTask;
-    public void Reset() { Networks.Clear(); SelectedNetwork = null; ErrorMessage = null; }
-    protected override void BusyChanged() { RefreshCommand.NotifyCanExecuteChanged(); RemoveCommand.NotifyCanExecuteChanged(); PruneCommand.NotifyCanExecuteChanged(); }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RemoveCommand))]
+    private DockerNetwork? selectedNetwork;
+
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private Task RefreshAsync() => RunAsync(RefreshCoreAsync);
+
+    [RelayCommand(CanExecute = nameof(CanRemove))]
+    private Task RemoveAsync()
+    {
+        if (!CanRemove()) return Task.CompletedTask;
+        var id = SelectedNetwork!.Id;
+        var message = $"Remove network \"{SelectedNetwork!.Name}\"?";
+        return RunAsync(async (distribution, token) =>
+        {
+            if (!confirmation.Confirm(message)) return;
+            token.ThrowIfCancellationRequested();
+            await client.RemoveAsync(distribution, id, token);
+            await RefreshCoreAsync(distribution, token);
+        });
+    }
+
+    private bool CanRemove() => CanRun() && SelectedNetwork is { IsStandard: false };
+
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private Task PruneAsync() => RunAsync(async (distribution, token) =>
+    {
+        if (!confirmation.Confirm("Remove all unused Docker networks?")) return;
+        token.ThrowIfCancellationRequested();
+        await client.PruneAsync(distribution, token);
+        await RefreshCoreAsync(distribution, token);
+    });
+
+    private async Task RefreshCoreAsync(string distribution, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        Replace(Networks, await client.GetNetworksAsync(distribution, token), token);
+        SelectedNetwork = null;
+    }
+
+    protected override void Reset()
+    {
+        Networks.Clear();
+        SelectedNetwork = null;
+    }
+
+    protected override void NotifyCommands()
+    {
+        RefreshCommand.NotifyCanExecuteChanged();
+        RemoveCommand.NotifyCanExecuteChanged();
+        PruneCommand.NotifyCanExecuteChanged();
+    }
 }

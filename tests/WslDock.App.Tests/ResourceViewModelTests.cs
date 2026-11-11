@@ -3,7 +3,7 @@ using WslDock.App.ViewModels;
 using WslDock.Application;
 using WslDock.Domain;
 
-namespace WslDock.Application.Tests;
+namespace WslDock.App.Tests;
 
 public sealed class ResourceViewModelTests
 {
@@ -35,11 +35,36 @@ public sealed class ResourceViewModelTests
         Assert.False(client.Removed);
     }
 
+    [Fact]
+    public async Task Switching_distribution_during_refresh_cancels_and_discards_old_images()
+    {
+        var context = Context();
+        var oldImages = new TaskCompletionSource<IReadOnlyList<DockerImage>>();
+        var client = new ImageClient { Load = oldImages.Task };
+        using var vm = new ImagesViewModel(context, client, new Confirmation(true));
+
+        var refresh = vm.RefreshCommand.ExecuteAsync(null);
+        context.SelectedDistribution = new("Debian");
+        oldImages.SetResult([new("old", "nginx", "latest", "", "", "")]);
+        await refresh;
+
+        Assert.True(client.LoadToken.IsCancellationRequested);
+        Assert.Empty(vm.Images);
+        Assert.Null(vm.ErrorMessage);
+        Assert.False(vm.IsBusy);
+    }
+
     private sealed class Confirmation(bool answer) : IConfirmationService { public bool Confirm(string message) => answer; }
     private sealed class ImageClient : IDockerImageClient
     {
         public string? Pulled { get; private set; }
-        public Task<IReadOnlyList<DockerImage>> GetImagesAsync(string d, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<DockerImage>>([new("id", "nginx", "latest", "digest", "now", "1MB")]);
+        public Task<IReadOnlyList<DockerImage>>? Load { get; init; }
+        public CancellationToken LoadToken { get; private set; }
+        public Task<IReadOnlyList<DockerImage>> GetImagesAsync(string d, CancellationToken ct = default)
+        {
+            LoadToken = ct;
+            return Load ?? Task.FromResult<IReadOnlyList<DockerImage>>([new("id", "nginx", "latest", "digest", "now", "1MB")]);
+        }
         public Task PullAsync(string d, string r, CancellationToken ct = default) { Pulled = r; return Task.CompletedTask; }
         public Task RemoveAsync(string d, string id, CancellationToken ct = default) => Task.CompletedTask;
         public Task PruneAsync(string d, CancellationToken ct = default) => Task.CompletedTask;

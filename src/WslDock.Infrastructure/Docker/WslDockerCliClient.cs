@@ -1,15 +1,18 @@
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using WslDock.Application;
-using WslDock.Application.Processes;
 using WslDock.Domain;
+using WslDock.Infrastructure.Process;
 
 namespace WslDock.Infrastructure.Docker;
 
 public sealed class WslDockerCliClient(IProcessRunner processRunner, ILogger<WslDockerCliClient> logger) : IDockerClient
 {
+    private readonly WslDockerCommand command = new(processRunner);
+
     public async Task<DockerEngineStatus> GetStatusAsync(string distribution, CancellationToken cancellationToken = default)
     {
-        var result = await RunAsync(distribution, ["docker", "info", "--format", "{{json .ServerVersion}}"], cancellationToken);
+        var result = await command.RunAsync(distribution, ["info", "--format", "{{json .ServerVersion}}"], cancellationToken);
         if (result.IsSuccess) return DockerEngineStatus.Running;
         var error = result.StandardError;
         if (error.Contains("not found", StringComparison.OrdinalIgnoreCase) || result.ExitCode == 127) return DockerEngineStatus.CliNotInstalled;
@@ -19,8 +22,7 @@ public sealed class WslDockerCliClient(IProcessRunner processRunner, ILogger<Wsl
 
     public async Task<IReadOnlyList<DockerContainer>> GetContainersAsync(string distribution, CancellationToken cancellationToken = default)
     {
-        var result = await RunAsync(distribution, ["docker", "ps", "-a", "--format", "{{json .}}"], cancellationToken);
-        EnsureSuccess(result, "load containers");
+        var result = await command.RunAsync(distribution, ["ps", "-a", "--format", "{{json .}}"], "load containers", cancellationToken);
         return DockerContainerParser.Parse(result.StandardOutput);
     }
 
@@ -38,28 +40,14 @@ public sealed class WslDockerCliClient(IProcessRunner processRunner, ILogger<Wsl
 
     public async Task<string> GetLogsAsync(string distribution, string containerId, int tailLines, CancellationToken cancellationToken = default)
     {
-        var result = await RunAsync(distribution, ["docker", "logs", "--tail", Math.Max(1, tailLines).ToString(System.Globalization.CultureInfo.InvariantCulture), containerId], cancellationToken);
-        EnsureSuccess(result, "load logs");
-        return string.Join('\n', new[] { result.StandardError.TrimEnd(), result.StandardOutput.TrimEnd() }.Where(x => x.Length > 0));
+        var lines = Math.Max(1, tailLines).ToString(CultureInfo.InvariantCulture);
+        var result = await command.RunAsync(distribution, ["logs", "--tail", lines, containerId], "load logs", cancellationToken);
+        return WslDockerCommand.CombineLogs(result);
     }
 
     private async Task ExecuteOperationAsync(string distribution, string operation, string containerId, CancellationToken cancellationToken)
     {
         logger.LogInformation("Docker {Operation} requested for container {ContainerId}", operation, containerId);
-        var result = await RunAsync(distribution, ["docker", operation, containerId], cancellationToken);
-        EnsureSuccess(result, operation);
-    }
-
-    private Task<ProcessResult> RunAsync(string distribution, IReadOnlyList<string> dockerArguments, CancellationToken cancellationToken)
-    {
-        var arguments = new List<string> { "-d", distribution, "--" };
-        arguments.AddRange(dockerArguments);
-        return processRunner.RunAsync(new ProcessRequest("wsl.exe", arguments), cancellationToken);
-    }
-
-    private static void EnsureSuccess(ProcessResult result, string operation)
-    {
-        if (!result.IsSuccess)
-            throw new DockerCommandException($"Docker could not {operation}. {result.StandardError.Trim()}");
+        await command.RunAsync(distribution, [operation, containerId], operation, cancellationToken);
     }
 }

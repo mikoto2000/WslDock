@@ -1,4 +1,4 @@
-namespace WslDock.Application.Processes;
+namespace WslDock.Infrastructure.Process;
 
 public sealed record ProcessRequest(string Executable, IReadOnlyList<string> Arguments)
 {

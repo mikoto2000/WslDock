@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using WslDock.App.ViewModels;
 using WslDock.App.Services;
 using WslDock.Application;
-using WslDock.Application.Processes;
 using WslDock.Infrastructure.Docker;
 using WslDock.Infrastructure.Process;
 using WslDock.Infrastructure.Wsl;
@@ -36,6 +35,7 @@ public partial class App : System.Windows.Application
         collection.AddSingleton<IDockerComposeClient, WslDockerComposeClient>();
         collection.AddSingleton<IConfirmationService, MessageBoxConfirmationService>();
         collection.AddSingleton<DistributionContext>();
+        collection.AddSingleton<ContainersViewModel>();
         collection.AddSingleton<ImagesViewModel>();
         collection.AddSingleton<VolumesViewModel>();
         collection.AddSingleton<NetworksViewModel>();
