@@ -54,6 +54,24 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public async Task Declined_container_confirmation_does_not_remove()
+    {
+        var docker = new FakeDockerClient
+        {
+            Load = _ => Task.FromResult<IReadOnlyList<DockerContainer>>(
+                [new("id", "web", "nginx", DockerContainerState.Exited, "Exited", "")])
+        };
+        using var vm = CreateContainers(docker, confirmation: false);
+        await vm.RefreshCommand.ExecuteAsync(null);
+        vm.SelectedContainer = Assert.Single(vm.Containers);
+        Assert.True(vm.RemoveCommand.CanExecute(null));
+
+        await vm.RemoveCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, docker.Removes);
+    }
+
+    [Fact]
     public async Task Exec_is_enabled_only_for_running_container_and_launches()
     {
         var exec = new FakeExecService();
@@ -105,8 +123,8 @@ public sealed class MainViewModelTests
         Assert.False(containers.IsBusy);
     }
 
-    private static ContainersViewModel CreateContainers(FakeDockerClient client, FakeExecService? exec = null) =>
-        new(new DistributionContext { SelectedDistribution = new("Ubuntu") }, client, new WslDockOptions(), new Confirmation(true), exec ?? new());
+    private static ContainersViewModel CreateContainers(FakeDockerClient client, FakeExecService? exec = null, bool confirmation = true) =>
+        new(new DistributionContext { SelectedDistribution = new("Ubuntu") }, client, new WslDockOptions(), new Confirmation(confirmation), exec ?? new());
 
     private static MainViewModel CreateMain(FakeDockerClient client, WslDockOptions options)
     {

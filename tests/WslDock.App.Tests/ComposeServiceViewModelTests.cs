@@ -27,11 +27,21 @@ public sealed class ComposeServiceViewModelTests
     [Fact]
     public async Task Start_uses_container_id_and_refreshes_services()
     {
-        var vm = Create(out var docker, out _);
-        vm.SelectedProject = Project(); vm.SelectedService = Service("exited");
+        var composeClient = new ComposeClient();
+        using var vm = Create(out var docker, out _, composeClient: composeClient);
+        var stoppedService = Service("exited");
+        var runningService = Service("running");
+        composeClient.LoadServices = _ => Task.FromResult<IReadOnlyList<DockerComposeService>>(
+            [docker.StartedId == stoppedService.Id ? runningService : stoppedService]);
+        vm.SelectedProject = Project();
+        vm.SelectedService = Assert.Single(vm.Services);
+        Assert.Equal(DockerContainerState.Exited, vm.SelectedService.State);
+        Assert.True(vm.ServiceStartCommand.CanExecute(null));
+
         await vm.ServiceStartCommand.ExecuteAsync(null);
-        Assert.Equal("container-id", docker.StartedId);
-        Assert.NotEmpty(vm.Services);
+
+        Assert.Equal(stoppedService.Id, docker.StartedId);
+        Assert.Equal(runningService, Assert.Single(vm.Services));
     }
 
     [Fact]
@@ -41,6 +51,23 @@ public sealed class ComposeServiceViewModelTests
         vm.SelectedProject = Project(); vm.SelectedService = Service("exited");
         await vm.ServiceRemoveCommand.ExecuteAsync(null);
         Assert.Equal("container-id", docker.RemovedId);
+    }
+
+    [Fact]
+    public async Task Declined_compose_service_confirmation_does_not_remove()
+    {
+        var composeClient = new ComposeClient
+        {
+            LoadServices = _ => Task.FromResult<IReadOnlyList<DockerComposeService>>([Service("exited")])
+        };
+        using var vm = Create(out var docker, out _, confirmation: false, composeClient: composeClient);
+        vm.SelectedProject = Project();
+        vm.SelectedService = Assert.Single(vm.Services);
+        Assert.True(vm.ServiceRemoveCommand.CanExecute(null));
+
+        await vm.ServiceRemoveCommand.ExecuteAsync(null);
+
+        Assert.Null(docker.RemovedId);
     }
 
     [Fact]
@@ -111,7 +138,7 @@ public sealed class ComposeServiceViewModelTests
     {
         public Task<bool> IsAvailableAsync(string d, CancellationToken ct = default) => Task.FromResult(true);
         public Task<IReadOnlyList<DockerComposeProject>> GetProjectsAsync(string d, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<DockerComposeProject>>([Project()]);
-        public Func<DockerComposeProject, Task<IReadOnlyList<DockerComposeService>>>? LoadServices { get; init; }
+        public Func<DockerComposeProject, Task<IReadOnlyList<DockerComposeService>>>? LoadServices { get; set; }
         public Task<IReadOnlyList<DockerComposeService>> GetServicesAsync(string d, DockerComposeProject p, CancellationToken ct = default) =>
             LoadServices?.Invoke(p) ?? Task.FromResult<IReadOnlyList<DockerComposeService>>([Service("running")]);
         public Task UpAsync(string d, DockerComposeProject p, CancellationToken ct = default) => Task.CompletedTask;
