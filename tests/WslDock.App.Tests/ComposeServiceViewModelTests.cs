@@ -3,7 +3,7 @@ using WslDock.App.ViewModels;
 using WslDock.Application;
 using WslDock.Domain;
 
-namespace WslDock.Application.Tests;
+namespace WslDock.App.Tests;
 
 public sealed class ComposeServiceViewModelTests
 {
@@ -49,16 +49,57 @@ public sealed class ComposeServiceViewModelTests
         var vm = Create(out _, out var exec);
         vm.SelectedProject = Project(); vm.SelectedService = Service("running");
         await vm.ServiceExecCommand.ExecuteAsync(null);
-        Assert.Equal(("Ubuntu", "container-id", ContainerShell.Sh), exec.Launched);
+        Assert.Equal(("Ubuntu", "container-id"), exec.Launched);
     }
 
-    private static ComposeProjectsViewModel Create(out DockerClient docker, out ExecService exec, bool confirmation = true)
+    [Fact]
+    public async Task Selection_changes_while_loading_details_show_only_the_latest_project()
+    {
+        var oldDetails = new TaskCompletionSource<IReadOnlyList<DockerComposeService>>();
+        var oldProject = Project();
+        var newProject = oldProject with { Name = "other" };
+        var newService = Service("running") with { Id = "other-container" };
+        var client = new ComposeClient
+        {
+            LoadServices = project => project == oldProject
+                ? oldDetails.Task
+                : Task.FromResult<IReadOnlyList<DockerComposeService>>([newService])
+        };
+        using var vm = Create(out _, out _, composeClient: client);
+
+        vm.SelectedProject = oldProject;
+        vm.SelectedProject = newProject;
+        Assert.Empty(vm.Services);
+
+        oldDetails.SetResult([Service("exited")]);
+        await WaitUntilAsync(() => vm.Services.Count == 1 && !vm.IsBusy);
+
+        Assert.Equal(newService, Assert.Single(vm.Services));
+        Assert.Equal(newProject, vm.SelectedProject);
+    }
+
+    [Theory]
+    [InlineData("paused", true)]
+    [InlineData("restarting", false)]
+    public void Active_service_cannot_be_started_removed_or_used_for_exec(string state, bool canStop)
+    {
+        using var vm = Create(out _, out _);
+        vm.SelectedProject = Project();
+        vm.SelectedService = Service(state);
+
+        Assert.False(vm.ServiceStartCommand.CanExecute(null));
+        Assert.False(vm.ServiceRemoveCommand.CanExecute(null));
+        Assert.False(vm.ServiceExecCommand.CanExecute(null));
+        Assert.Equal(canStop, vm.ServiceStopCommand.CanExecute(null));
+    }
+
+    private static ComposeProjectsViewModel Create(out DockerClient docker, out ExecService exec, bool confirmation = true, ComposeClient? composeClient = null)
     {
         docker = new DockerClient(); exec = new ExecService();
-        return new ComposeProjectsViewModel(new DistributionContext { SelectedDistribution = new("Ubuntu") }, new ComposeClient(), new Confirmation(confirmation), new WslDockOptions(), docker, exec) { IsComposeAvailable = true };
+        return new ComposeProjectsViewModel(new DistributionContext { SelectedDistribution = new("Ubuntu") }, composeClient ?? new ComposeClient(), new Confirmation(confirmation), new WslDockOptions(), docker, exec) { IsComposeAvailable = true };
     }
     private static DockerComposeProject Project() => new("demo", "running(1)", ["/work/compose.yml"], "/work");
-    private static DockerComposeService Service(string state) => new("container-id", "web", "demo-web-1", "nginx", state, state, "80/tcp");
+    private static DockerComposeService Service(string state) => new("container-id", "web", "demo-web-1", "nginx", Enum.Parse<DockerContainerState>(state, ignoreCase: true), state, "80/tcp");
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
         for (var attempt = 0; attempt < 100 && !condition(); attempt++) await Task.Delay(10);
@@ -70,7 +111,9 @@ public sealed class ComposeServiceViewModelTests
     {
         public Task<bool> IsAvailableAsync(string d, CancellationToken ct = default) => Task.FromResult(true);
         public Task<IReadOnlyList<DockerComposeProject>> GetProjectsAsync(string d, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<DockerComposeProject>>([Project()]);
-        public Task<IReadOnlyList<DockerComposeService>> GetServicesAsync(string d, DockerComposeProject p, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<DockerComposeService>>([Service("running")]);
+        public Func<DockerComposeProject, Task<IReadOnlyList<DockerComposeService>>>? LoadServices { get; init; }
+        public Task<IReadOnlyList<DockerComposeService>> GetServicesAsync(string d, DockerComposeProject p, CancellationToken ct = default) =>
+            LoadServices?.Invoke(p) ?? Task.FromResult<IReadOnlyList<DockerComposeService>>([Service("running")]);
         public Task UpAsync(string d, DockerComposeProject p, CancellationToken ct = default) => Task.CompletedTask;
         public Task DownAsync(string d, DockerComposeProject p, CancellationToken ct = default) => Task.CompletedTask;
         public Task RestartAsync(string d, DockerComposeProject p, CancellationToken ct = default) => Task.CompletedTask;
@@ -89,8 +132,7 @@ public sealed class ComposeServiceViewModelTests
     }
     private sealed class ExecService : IContainerExecService
     {
-        public (string Distribution, string Id, ContainerShell Shell)? Launched { get; private set; }
-        public Task<ContainerShell?> DetectShellAsync(string d, string id, CancellationToken ct = default) => Task.FromResult<ContainerShell?>(ContainerShell.Sh);
-        public Task OpenInteractiveShellAsync(string d, string id, ContainerShell shell, CancellationToken ct = default) { Launched = (d, id, shell); return Task.CompletedTask; }
+        public (string Distribution, string Id)? Launched { get; private set; }
+        public Task OpenInteractiveShellAsync(string d, string id, CancellationToken ct = default) { Launched = (d, id); return Task.CompletedTask; }
     }
 }

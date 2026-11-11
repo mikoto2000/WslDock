@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using WslDock.Application.Processes;
 
 namespace WslDock.Infrastructure.Process;
 
@@ -9,6 +8,7 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRunne
 {
     public async Task<ProcessResult> RunAsync(ProcessRequest request, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var info = new ProcessStartInfo
         {
             FileName = request.Executable,

@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -13,7 +13,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WslDock.Infrastructure", "s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WslDock.App", "src\WslDock.App\WslDock.App.csproj", "{D9A931E1-E018-4DF6-BB63-A0070FAA2F0D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WslDock.Application.Tests", "tests\WslDock.Application.Tests\WslDock.Application.Tests.csproj", "{A47F6601-2323-495E-9E7F-BADD2A52EE00}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WslDock.App.Tests", "tests\WslDock.App.Tests\WslDock.App.Tests.csproj", "{A47F6601-2323-495E-9E7F-BADD2A52EE00}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WslDock.Infrastructure.Tests", "tests\WslDock.Infrastructure.Tests\WslDock.Infrastructure.Tests.csproj", "{3C3D9FCC-1331-43A8-B032-636F802B6714}"
 EndProject

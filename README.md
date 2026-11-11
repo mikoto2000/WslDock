@@ -73,10 +73,11 @@ Version 1.1 does not provide builds, image push/tag, registry login, resource cr
 
 ```text
 WslDock.App            -> WslDock.Application -> WslDock.Domain
+WslDock.App            -> WslDock.Infrastructure (startup composition)
 WslDock.Infrastructure -> WslDock.Application -> WslDock.Domain
 ```
 
-`WslDock.App` contains WPF/MVVM and dependency composition. `WslDock.Application` defines use-case boundaries. `WslDock.Domain` contains pure models. `WslDock.Infrastructure` owns process execution, WSL parsing, and Docker CLI parsing/calls. Unit tests use fake process and Docker clients and do not require WSL or Docker.
+`WslDock.App` contains WPF/MVVM and dependency composition. `WslDock.Application` defines use-case boundaries. `WslDock.Domain` contains pure models. `WslDock.Infrastructure` owns process execution, WSL parsing, and Docker CLI parsing/calls. The shell selects the WSL distribution. Each tab owns its data and clears it when the shared selection changes. The Containers and Compose tabs share container state rules and use the same application contracts for container operations. Unit tests use fake process and Docker clients and do not require WSL or Docker.
 
 ```text
 WPF View -> ViewModel -> Application abstraction -> Infrastructure CLI client

@@ -1,9 +1,23 @@
-using CommunityToolkit.Mvvm.ComponentModel;
 using WslDock.Domain;
+
 namespace WslDock.App.ViewModels;
-public partial class DistributionContext : ObservableObject
+
+public sealed class DistributionContext
 {
-    [ObservableProperty] private WslDistribution? selectedDistribution;
+    private WslDistribution? selectedDistribution;
+
+    public event Action? SelectionChanged;
+
+    public WslDistribution? SelectedDistribution
+    {
+        get => selectedDistribution;
+        set
+        {
+            if (selectedDistribution == value) return;
+            selectedDistribution = value;
+            SelectionChanged?.Invoke();
+        }
+    }
+
     public string? Name => SelectedDistribution?.Name;
-    partial void OnSelectedDistributionChanged(WslDistribution? value) => OnPropertyChanged(nameof(Name));
 }

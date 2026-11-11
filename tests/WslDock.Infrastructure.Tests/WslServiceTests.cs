@@ -1,4 +1,4 @@
-using WslDock.Application.Processes;
+using WslDock.Infrastructure.Process;
 using WslDock.Infrastructure.Wsl;
 
 namespace WslDock.Infrastructure.Tests;

@@ -1,5 +1,5 @@
+using WslDock.Infrastructure.Process;
 using Microsoft.Extensions.Logging.Abstractions;
-using WslDock.Application.Processes;
 using WslDock.Infrastructure.Docker;
 
 namespace WslDock.Infrastructure.Tests;
